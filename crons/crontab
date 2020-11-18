@@ -1,0 +1,2 @@
+0 * * * * /usr/local/bin/php -q /var/www/html/crons/fetch.php >> /var/log/cron.log 2>&1
+*/2 * * * * /usr/local/bin/php -q /var/www/html/crons/process.php >> /var/log/cron.log 2>&1
