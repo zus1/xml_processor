@@ -13,7 +13,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libzip-dev \
     && docker-php-ext-install -j$(nproc) pdo_mysql zip
 RUN a2enmod rewrite && \
-    service apache2 restart && \
+    service apache2 restart
 ADD crons /etc/cron.d/root
 RUN chmod 0644 /etc/cron.d/root
 RUN crontab /etc/cron.d/root
