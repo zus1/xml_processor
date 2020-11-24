@@ -8,16 +8,19 @@ use XmlProcessor\FileSystem\FileSystem;
 use XmlProcessor\Interfaces\FileSystemInterface\FileSystemInterface;
 use XmlProcessor\Interfaces\ProcessorInterface\ProcessorInterface;
 use XmlProcessor\Services\Config\Config;
+use XmlProcessor\ValueObjects\FetchUrls;
 use XmlProcessor\ValueObjects\XmlToArray\XmlToArray;
 
 class XmlProcessor implements ProcessorInterface {
     private FileSystemInterface $fileSystem;
+    private FetchUrls $urls;
     private array $fetchUrls = array();
     private int $maxProcessPerCycle;
     private array $allowedFetchNumber = array();
 
-    public function __construct(FileSystemInterface $filesystem) {
+    public function __construct(FileSystemInterface $filesystem, FetchUrls $urls) {
         $this->fileSystem = $filesystem;
+        $this->urls = $urls;
         $this->maxProcessPerCycle = (int)Config::load()->get("MAX_PROCESS_PER_CYCLE", "3");
         $this->allowedFetchNumber = explode(",", Config::load()->get("ALLOWED_FETCH_NUMBER", "20,200,2000"));
         $this->fetchUrls = explode(",", Config::load()->get("FETCH_URLS", "http://markerdev.info/backend/data2.xml"));
@@ -28,8 +31,11 @@ class XmlProcessor implements ProcessorInterface {
      */
     public function fetch() : void {
         $this->removeOldFetchedFiles();
-        array_walk($this->fetchUrls, function (string $url) {
-            $xml = file_get_contents($url);
+        $urlsData = $this->urls->getUrlData();
+        array_walk($urlsData, function (array $urlData) {
+            $contextClass = $urlData["context_class"];
+            $context = (new $contextClass())->buildFetchContext();
+            $xml = file_get_contents($urlData["url"], false, $context);
             $this->validate($xml);
             $this->fileSystem->save(FileSystem::RAW, $xml, FileSystem::EXTENSION_XML);
         });
@@ -149,8 +155,12 @@ class XmlProcessor implements ProcessorInterface {
             libxml_clear_errors();
             throw new Exception("Invalid Xml");
         }
-        if(!in_array($xmlObj->count(), $this->allowedFetchNumber)) {
-            throw new Exception("Invalid xm count found.");
+        $this->checkXmlCount($xmlObj->count());
+    }
+
+    private function checkXmlCount(int $count) : void {
+        if(!in_array($count, $this->allowedFetchNumber)) {
+            throw new Exception("Invalid xml count found.");
         }
     }
 }
